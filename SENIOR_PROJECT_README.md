@@ -2,7 +2,7 @@
 
 **Author**: Malik Salim  
 **Institution**: Bennington College  
-**Course**: Senior Plan  
+**Project**: Senior Plan (Capstone Project)
 **Year**: 2025
 
 ## 🎯 Project Overview

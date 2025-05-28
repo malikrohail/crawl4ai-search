@@ -271,3 +271,9 @@ curl -X POST "http://localhost:11234/search" \
     }
   }'
 ```
+
+## References
+
+- [FireCrawl API Reference – MendableAI](https://docs.firecrawl.dev/api-reference/endpoint/search)  
+- [FireCrawl GitHub Repository – MendableAI](https://github.com/mendableai/firecrawl)
+

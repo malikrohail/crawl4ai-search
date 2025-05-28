@@ -7,6 +7,7 @@ app:
   reload: False
   workers: 1
   timeout_keep_alive: 300
+  base_url: "http://localhost:11234"
 
 # Default LLM Configuration
 llm:
@@ -81,6 +82,25 @@ crawler:
 logging:
   level: "INFO"
   format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+# Search Engine Configuration
+search:
+  # Google Custom Search API (optional - requires API key and search engine ID)
+  google_api_key: "AIzaSyDT-S4oERhfHZCDdhBJph6vDkNZGsEo2E0"  # Set via environment variable GOOGLE_API_KEY
+  google_search_engine_id: "e50e8531a02cb4ba0"  # Set via environment variable GOOGLE_SEARCH_ENGINE_ID
+  
+  # Bing Search API (optional - requires API key)
+  bing_api_key: ""  # Set via environment variable BING_API_KEY
+  
+  # Default search engine fallback order: Google -> Bing -> DuckDuckGo
+  # DuckDuckGo is always available as fallback (no API key required)
+  default_engine: "duckduckgo"
+  
+  # Default search parameters
+  default_limit: 10
+  default_timeout: 30
+  default_lang: "en"
+  default_country: "us"
 
 # Observability Configuration
 observability:

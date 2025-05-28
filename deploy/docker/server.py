@@ -31,6 +31,8 @@ from schemas import (
     PDFRequest,
     JSEndpointRequest,
 )
+from search_schemas import SearchRequest, SearchResponse
+from search_endpoint import handle_search_request
 
 from utils import (
     FilterType, load_config, setup_logging, verify_email_domain
@@ -127,6 +129,15 @@ app.mount(
     "/playground",
     StaticFiles(directory=STATIC_DIR, html=True),
     name="play",
+)
+
+# ── static screenshots ──────────────────────────────────────
+SCREENSHOTS_DIR = pathlib.Path(__file__).parent / "static" / "screenshots"
+SCREENSHOTS_DIR.mkdir(parents=True, exist_ok=True)
+app.mount(
+    "/static/screenshots",
+    StaticFiles(directory=SCREENSHOTS_DIR),
+    name="screenshots",
 )
 
 
@@ -470,6 +481,51 @@ async def crawl_stream(
             "X-Stream-Status": "active",
         },
     )
+
+
+@app.post("/search")
+@limiter.limit(config["rate_limiting"]["default_limit"])
+@mcp_tool("search")
+async def search_web(
+    request: Request,
+    search_request: SearchRequest,
+    _td: Dict = Depends(token_dep),
+) -> SearchResponse:
+    """
+    Search the web and optionally scrape the search results.
+    
+    This endpoint combines web search (SERP) with Crawl4AI's scraping capabilities 
+    to return full page content for any query. Matches FireCrawl's search API.
+    
+    Parameters:
+    - query: The search query with optional operators (site:, inurl:, intitle:, etc.)
+    - limit: Number of search results to return (1-50, default: 5)
+    - tbs: Time-based search filters (qdr:h, qdr:d, qdr:w, qdr:m, qdr:y)
+    - lang: Language code (e.g., 'en', 'es', 'fr')
+    - country: Country code (e.g., 'us', 'uk', 'ca')
+    - location: Specific location for localized results
+    - timeout: Timeout in milliseconds (1000-300000, default: 60000)
+    - ignoreInvalidURLs: Whether to ignore invalid URLs
+    - scrapeOptions: Options for scraping search results (formats: ['markdown', 'html', 'rawHtml', 'links', 'screenshot'])
+    
+    Returns:
+    - SearchResponse with search results and optional scraped content
+    
+    Supported Query Operators:
+    - "exact match": Non-fuzzy matches a string of text
+    - -exclude: Excludes certain keywords
+    - site:domain.com: Only returns results from a specified website
+    - inurl:keyword: Only returns results that include a word in the URL
+    - allinurl:multiple words: Only returns results that include multiple words in the URL
+    - intitle:keyword: Only returns results that include a word in the title
+    - allintitle:multiple words: Only returns results that include multiple words in the title
+    - related:domain.com: Only returns results that are related to a specific domain
+    """
+    try:
+        response = await handle_search_request(search_request, config)
+        return response
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 def chunk_code_functions(code_md: str) -> List[str]:

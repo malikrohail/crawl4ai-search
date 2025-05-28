@@ -184,14 +184,104 @@
                 <select id="endpoint" class="ml-auto bg-dark border border-border rounded px-2 py-1 text-sm">
                     <option value="crawl">/crawl (batch)</option>
                     <option value="crawl_stream">/crawl/stream</option>
+                    <option value="search">/search</option>
                     <option value="md">/md</option>
                     <option value="llm">/llm</option>
                 </select>
             </div>
             <div class="p-4">
-                <label class="block mb-2 text-sm">URL(s) - one per line</label>
+                <label class="block mb-2 text-sm" id="url-label">URL(s) - one per line</label>
                 <textarea id="urls" class="w-full bg-dark border border-border rounded p-2 h-32 text-sm mb-4"
                     spellcheck="false">https://example.com</textarea>
+                
+                <!-- Search Query Input (for /search endpoint) -->
+                <div id="search-query-section" class="mb-4 hidden">
+                    <input id="search-query" type="text" placeholder="e.g., site:github.com python machine learning" 
+                        class="w-full bg-dark border border-border rounded p-2 text-sm">
+                    <div class="text-xs text-secondary mt-1">
+                        Supports operators: site:, intitle:, inurl:, -exclude, "exact match"
+                    </div>
+                </div>
+
+                <!-- Specific options for /search endpoint -->
+                <details id="search-options" class="mb-4 hidden">
+                    <summary class="text-sm text-secondary cursor-pointer">/search Options</summary>
+                    <div class="mt-2 space-y-3 p-2 border border-border rounded">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label for="search-limit" class="block text-xs text-secondary mb-1">Results Limit</label>
+                                <input id="search-limit" type="number" value="5" min="1" max="50" 
+                                    class="bg-dark border border-border rounded px-2 py-1 text-sm w-full">
+                            </div>
+                            <div>
+                                <label for="search-lang" class="block text-xs text-secondary mb-1">Language</label>
+                                <select id="search-lang" class="bg-dark border border-border rounded px-2 py-1 text-sm w-full">
+                                    <option value="en">English (en)</option>
+                                    <option value="es">Spanish (es)</option>
+                                    <option value="fr">French (fr)</option>
+                                    <option value="de">German (de)</option>
+                                    <option value="zh">Chinese (zh)</option>
+                                    <option value="ja">Japanese (ja)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label for="search-country" class="block text-xs text-secondary mb-1">Country</label>
+                                <select id="search-country" class="bg-dark border border-border rounded px-2 py-1 text-sm w-full">
+                                    <option value="us">United States (us)</option>
+                                    <option value="uk">United Kingdom (uk)</option>
+                                    <option value="ca">Canada (ca)</option>
+                                    <option value="au">Australia (au)</option>
+                                    <option value="de">Germany (de)</option>
+                                    <option value="fr">France (fr)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="search-tbs" class="block text-xs text-secondary mb-1">Time Filter</label>
+                                <select id="search-tbs" class="bg-dark border border-border rounded px-2 py-1 text-sm w-full">
+                                    <option value="">Any time</option>
+                                    <option value="qdr:h">Past hour</option>
+                                    <option value="qdr:d">Past day</option>
+                                    <option value="qdr:w">Past week</option>
+                                    <option value="qdr:m">Past month</option>
+                                    <option value="qdr:y">Past year</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-secondary mb-2">Content Formats to Extract</label>
+                            <div class="grid grid-cols-3 gap-2">
+                                <label class="flex items-center space-x-2">
+                                    <input type="checkbox" id="format-markdown" checked class="rounded">
+                                    <span class="text-xs">Markdown</span>
+                                </label>
+                                <label class="flex items-center space-x-2">
+                                    <input type="checkbox" id="format-html" class="rounded">
+                                    <span class="text-xs">HTML</span>
+                                </label>
+                                <label class="flex items-center space-x-2">
+                                    <input type="checkbox" id="format-rawhtml" class="rounded">
+                                    <span class="text-xs">Raw HTML</span>
+                                </label>
+                                <label class="flex items-center space-x-2">
+                                    <input type="checkbox" id="format-links" class="rounded">
+                                    <span class="text-xs">Links</span>
+                                </label>
+                                <label class="flex items-center space-x-2">
+                                    <input type="checkbox" id="format-screenshot" class="rounded">
+                                    <span class="text-xs">Screenshot</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="flex items-center space-x-2">
+                                <input type="checkbox" id="search-ignore-invalid" checked class="rounded">
+                                <span class="text-xs">Ignore Invalid URLs</span>
+                            </label>
+                        </div>
+                    </div>
+                </details>
 
                 <!-- Specific options for /md endpoint -->
                 <details id="md-options" class="mb-4 hidden">
@@ -482,27 +572,51 @@
         // Handle endpoint selection change to show appropriate options
         document.getElementById('endpoint').addEventListener('change', function(e) {
             const endpoint = e.target.value;
+            const searchOptions = document.getElementById('search-options');
+            const searchQuerySection = document.getElementById('search-query-section');
             const mdOptions = document.getElementById('md-options');
             const llmOptions = document.getElementById('llm-options');
             const advConfig = document.getElementById('adv-config');
+            const urlLabel = document.getElementById('url-label');
+            const urlsTextarea = document.getElementById('urls');
             
             // Hide all option sections first
+            searchOptions.classList.add('hidden');
+            searchQuerySection.classList.add('hidden');
             mdOptions.classList.add('hidden');
             llmOptions.classList.add('hidden');
             advConfig.classList.add('hidden');
             
             // Show the appropriate section based on endpoint
-            if (endpoint === 'md') {
+            if (endpoint === 'search') {
+                searchOptions.classList.remove('hidden');
+                searchQuerySection.classList.remove('hidden');
+                // Auto-open the /search options
+                searchOptions.setAttribute('open', '');
+                // Change URL label and placeholder for search
+                urlLabel.textContent = 'Search Query';
+                urlsTextarea.style.display = 'none';
+                document.getElementById('search-query').value = 'site:github.com python machine learning';
+            } else if (endpoint === 'md') {
                 mdOptions.classList.remove('hidden');
                 // Auto-open the /md options
                 mdOptions.setAttribute('open', '');
+                // Reset URL section
+                urlLabel.textContent = 'URL(s) - one per line';
+                urlsTextarea.style.display = 'block';
             } else if (endpoint === 'llm') {
                 llmOptions.classList.remove('hidden');
                 // Auto-open the /llm options
                 llmOptions.setAttribute('open', '');
+                // Reset URL section
+                urlLabel.textContent = 'URL(s) - one per line';
+                urlsTextarea.style.display = 'block';
             } else {
                 // For /crawl endpoints, show the advanced config
                 advConfig.classList.remove('hidden');
+                // Reset URL section
+                urlLabel.textContent = 'URL(s) - one per line';
+                urlsTextarea.style.display = 'block';
             }
         });
 
@@ -621,6 +735,7 @@
             const endpointMap = {
                 crawl: '/crawl',
                 // crawl_stream: '/crawl/stream',
+                search: '/search',
                 md: '/md',
                 llm: '/llm'
             };
@@ -629,7 +744,36 @@
             let payload;
             
             // Create appropriate payload based on endpoint type
-            if (endpoint === 'md') {
+            if (endpoint === 'search') {
+                // Get values from the /search specific inputs
+                const searchQuery = document.getElementById('search-query').value.trim();
+                const limit = parseInt(document.getElementById('search-limit').value) || 5;
+                const lang = document.getElementById('search-lang').value;
+                const country = document.getElementById('search-country').value;
+                const tbs = document.getElementById('search-tbs').value;
+                const ignoreInvalid = document.getElementById('search-ignore-invalid').checked;
+                
+                // Get selected formats
+                const formats = [];
+                if (document.getElementById('format-markdown').checked) formats.push('markdown');
+                if (document.getElementById('format-html').checked) formats.push('html');
+                if (document.getElementById('format-rawhtml').checked) formats.push('rawHtml');
+                if (document.getElementById('format-links').checked) formats.push('links');
+                if (document.getElementById('format-screenshot').checked) formats.push('screenshot');
+                
+                // Search endpoint payload
+                payload = {
+                    query: searchQuery,
+                    limit: limit,
+                    lang: lang,
+                    country: country,
+                    tbs: tbs || undefined,
+                    scrapeOptions: {
+                        formats: formats.length > 0 ? formats : ['markdown']
+                    },
+                    ignoreInvalidUrls: ignoreInvalid
+                };
+            } else if (endpoint === 'md') {
                 // Get values from the /md specific inputs
                 const filterType = document.getElementById('md-filter').value;
                 const query = document.getElementById('md-query').value.trim();

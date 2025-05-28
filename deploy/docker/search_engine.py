@@ -1,6 +1,7 @@
 """
-Multi-provider search engine with fallback support
-Supports Google, Bing, and DuckDuckGo with query operators
+Search Engine Implementation for Crawl4AI
+Supports multiple search providers with query operators
+Feature implementation based on FireCrawl search endpoint: https://docs.firecrawl.dev/features/search
 """
 
 import asyncio
@@ -17,12 +18,15 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class SearchResult:
+    """Basic search result from search engine"""
     title: str
     description: str
     url: str
     position: int = 0
 
 class SearchEngine:
+    """Base search engine class"""
+    
     def __init__(self, timeout: int = 30):
         self.timeout = timeout
         self.session = None
@@ -47,46 +51,59 @@ class SearchEngine:
             await self.session.close()
     
     async def search(self, query: str, limit: int = 10, **kwargs) -> List[SearchResult]:
+        """Override in subclasses"""
         raise NotImplementedError
 
 class DuckDuckGoSearch(SearchEngine):
+    """DuckDuckGo search implementation"""
+    
     def __init__(self, timeout: int = 30):
         super().__init__(timeout)
         self.base_url = "https://duckduckgo.com/"
         self.instant_answer_url = "https://api.duckduckgo.com/"
     
     async def search(self, query: str, limit: int = 10, lang: str = "en", country: str = "us", tbs: str = None, **kwargs) -> List[SearchResult]:
+        """Search using DuckDuckGo"""
         try:
-            await asyncio.sleep(1.0)  # Rate limiting
+            # Add initial delay to avoid rate limiting
+            await asyncio.sleep(1.0)
             
-            # Check for search operators
+            # Check if query has operators that work better with HTML search
+            # migrated these operators feature from firecrawl
             has_operators = any(op in query.lower() for op in ['site:', 'inurl:', 'intitle:', 'filetype:', '-'])
             
             if has_operators:
+                # For queries with operators, try HTML search first
                 logger.info("Query contains operators, trying HTML search first")
                 
+                # Try regular HTML search first for operators
                 html_results = await self._try_html_search(query, limit, lang, country, tbs)
                 if html_results:
                     logger.info(f"Found {len(html_results)} results from HTML search")
                     return html_results
                 
+                # do lite HTML search , if regular html search fails
                 lite_results = await self._try_lite_search(query, limit, lang, country, tbs)
                 if lite_results:
                     logger.info(f"Found {len(lite_results)} results from lite search")
                     return lite_results
             else:
+                # For simple queries, try instant answer first
                 logger.info("Simple query")
                 
+                # Try instant answer API for simple queries
                 instant_results = await self._try_instant_answer(query, limit)
                 if instant_results:
                     logger.info(f"Found {len(instant_results)} results from instant answer API")
                     return instant_results
                 
+                # Try lite HTML search
                 lite_results = await self._try_lite_search(query, limit, lang, country, tbs)
                 if lite_results:
                     logger.info(f"Found {len(lite_results)} results from lite search")
                     return lite_results
                 
+                # Fallback to regular HTML search
                 html_results = await self._try_html_search(query, limit, lang, country, tbs)
                 if html_results:
                     logger.info(f"Found {len(html_results)} results from HTML search")
@@ -100,6 +117,7 @@ class DuckDuckGoSearch(SearchEngine):
             return []
     
     async def _try_instant_answer(self, query: str, limit: int) -> List[SearchResult]:
+        """Try DuckDuckGo instant answer API"""
         try:
             params = {
                 'q': query,
@@ -110,9 +128,11 @@ class DuckDuckGoSearch(SearchEngine):
             
             async with self.session.get(self.instant_answer_url, params=params) as response:
                 if response.status == 200:
+                    # Handle both JSON and JavaScript responses
                     content_type = response.headers.get('content-type', '')
                     if 'json' in content_type or 'javascript' in content_type:
                         text_content = await response.text()
+                        # Try to parse as JSON
                         try:
                             data = json.loads(text_content)
                             return self._parse_instant_answer(data, query, limit)
@@ -127,15 +147,19 @@ class DuckDuckGoSearch(SearchEngine):
         return []
     
     async def _try_html_search(self, query: str, limit: int, lang: str, country: str, tbs: str) -> List[SearchResult]:
+        """Try DuckDuckGo HTML search (better for operators)"""
         try:
+            # Add a delay to avoid rate limiting
             await asyncio.sleep(1.2)
             
+            # Use regular DuckDuckGo HTML for better operator support
             search_url = "https://duckduckgo.com/html/"
             params = {
                 'q': query,
                 'kl': f'{country}-{lang}' if country and lang else 'us-en',
             }
             
+            # Add time-based filters if specified
             if tbs:
                 params['df'] = self._convert_tbs_to_ddg(tbs)
             
@@ -215,24 +239,30 @@ class DuckDuckGoSearch(SearchEngine):
         return []
     
     def _parse_lite_results(self, html: str, limit: int) -> List[SearchResult]:
+        """Parse DuckDuckGo lite version results (table-based)"""
         results = []
         try:
             soup = BeautifulSoup(html, 'html.parser')
+            
+            # Lite version uses table rows
             table_rows = soup.find_all('tr')
             
             for i, row in enumerate(table_rows):
                 try:
+                    # Look for links in the row
                     links = row.find_all('a')
                     
                     for link in links:
                         href = link.get('href', '')
                         title = link.get_text(strip=True)
                         
+                        # Skip internal DuckDuckGo links and empty titles
                         if (href and title and 
                             href.startswith('http') and 
                             'duckduckgo.com' not in href and
                             len(title) > 3):
                             
+                            # Try to get description from the same row or next cells
                             description = ""
                             cells = row.find_all('td')
                             for cell in cells:
@@ -261,10 +291,12 @@ class DuckDuckGoSearch(SearchEngine):
         return results
     
     def _parse_ddg_html_results(self, html: str, limit: int) -> List[SearchResult]:
+        """Parse regular DuckDuckGo HTML results (better for operators)"""
         results = []
         try:
             soup = BeautifulSoup(html, 'html.parser')
             
+            # Look for result containers in regular DuckDuckGo HTML
             result_elements = (
                 soup.find_all('div', class_='result') or
                 soup.find_all('div', class_='web-result') or
@@ -420,6 +452,7 @@ class BingSearch(SearchEngine):
         self.base_url = "https://api.bing.microsoft.com/v7.0/search"
     
     async def search(self, query: str, limit: int = 10, lang: str = "en", country: str = "us", tbs: str = None, **kwargs) -> List[SearchResult]:
+        """Search using Bing API"""
         if not self.api_key:
             logger.warning("Bing API key not provided, falling back to DuckDuckGo")
             ddg = DuckDuckGoSearch(self.timeout)
@@ -441,6 +474,7 @@ class BingSearch(SearchEngine):
                 'textFormat': 'Raw'
             }
             
+            # Add freshness filter if specified
             if tbs:
                 freshness = self._convert_tbs_to_bing(tbs)
                 if freshness:
@@ -459,6 +493,7 @@ class BingSearch(SearchEngine):
             return []
     
     def _convert_tbs_to_bing(self, tbs: str) -> str:
+        """Convert Google-style tbs to Bing freshness filter"""
         tbs_mapping = {
             'qdr:d': 'Day',
             'qdr:w': 'Week',
@@ -467,6 +502,7 @@ class BingSearch(SearchEngine):
         return tbs_mapping.get(tbs, '')
     
     def _parse_bing_results(self, data: dict) -> List[SearchResult]:
+        """Parse Bing API response"""
         results = []
         try:
             web_pages = data.get('webPages', {})
@@ -496,6 +532,8 @@ class BingSearch(SearchEngine):
         return results
 
 class GoogleCustomSearch(SearchEngine):
+    """Google Custom Search implementation"""
+    
     def __init__(self, api_key: str = None, search_engine_id: str = None, timeout: int = 30):
         super().__init__(timeout)
         self.api_key = api_key
@@ -503,6 +541,7 @@ class GoogleCustomSearch(SearchEngine):
         self.base_url = "https://www.googleapis.com/customsearch/v1"
     
     async def search(self, query: str, limit: int = 10, lang: str = "en", country: str = "us", tbs: str = None, **kwargs) -> List[SearchResult]:
+        """Search using Google Custom Search API"""
         if not self.api_key or not self.search_engine_id:
             logger.warning("Google Custom Search credentials not provided, falling back to DuckDuckGo")
             ddg = DuckDuckGoSearch(self.timeout)
@@ -514,12 +553,13 @@ class GoogleCustomSearch(SearchEngine):
                 'key': self.api_key,
                 'cx': self.search_engine_id,
                 'q': query,
-                'num': min(limit, 10),  # Google max 10 per request
+                'num': min(limit, 10),  # Google allows max 10 per request
                 'hl': lang,
                 'gl': country,
                 'safe': 'off'
             }
             
+            # Add date restriction if specified
             if tbs:
                 date_restrict = self._convert_tbs_to_google(tbs)
                 if date_restrict:
@@ -538,6 +578,7 @@ class GoogleCustomSearch(SearchEngine):
             return []
     
     def _convert_tbs_to_google(self, tbs: str) -> str:
+        """Convert tbs to Google dateRestrict format"""
         tbs_mapping = {
             'qdr:h': 'd1',   # Past hour -> Past day
             'qdr:d': 'd1',   # Past day
@@ -548,6 +589,7 @@ class GoogleCustomSearch(SearchEngine):
         return tbs_mapping.get(tbs, '')
     
     def _parse_google_results(self, data: dict) -> List[SearchResult]:
+        """Parse Google Custom Search API response"""
         results = []
         try:
             items = data.get('items', [])

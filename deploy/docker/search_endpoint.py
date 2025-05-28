@@ -1,5 +1,6 @@
 """
-Search endpoint that integrates web search with crawl4ai scraping
+Search Endpoint Implementation for Crawl4AI
+Integrates web search with crawl4ai's scraping capabilities
 """
 
 import asyncio
@@ -15,31 +16,36 @@ import validators
 
 from search_engine import perform_web_search, SearchResult as EngineSearchResult
 from search_schemas import SearchRequest, SearchResponse, SearchResult, SearchResultMetadata
-from api import handle_crawl_request
+from api import handle_crawl_request  # Import existing crawl functionality
 from schemas import CrawlRequest
 from crawl4ai import BrowserConfig, CrawlerRunConfig
 
 logger = logging.getLogger(__name__)
 
 class SearchService:
+    """Service class for handling search operations"""
+    
     def __init__(self, config: dict = None):
         self.config = config or {}
         self.search_config = self.config.get('search', {})
-        # Setup screenshots directory
+        # Create screenshots directory if it doesn't exist
         self.screenshots_dir = os.path.join(os.path.dirname(__file__), "static", "screenshots")
         os.makedirs(self.screenshots_dir, exist_ok=True)
     
     def _save_screenshot_to_file(self, base64_data: str) -> str:
-        """Convert base64 screenshot to hosted file"""
+        """Save base64 screenshot data to file and return URL"""
         try:
+            # Generate unique filename
             screenshot_id = str(uuid.uuid4())
             filename = f"screenshot-{screenshot_id}.png"
             filepath = os.path.join(self.screenshots_dir, filename)
             
+            # Decode and save base64 data
             image_data = base64.b64decode(base64_data)
             with open(filepath, 'wb') as f:
                 f.write(image_data)
             
+            # Return URL (assuming server serves static files)
             base_url = self.config.get('app', {}).get('base_url', 'http://localhost:11234')
             screenshot_url = f"{base_url}/static/screenshots/{filename}"
             
@@ -48,13 +54,22 @@ class SearchService:
             
         except Exception as e:
             logger.error(f"Failed to save screenshot: {str(e)}")
-            return base64_data
+            return base64_data  # Return original base64 as fallback
     
     async def search_and_scrape(self, request: SearchRequest) -> SearchResponse:
-        """Main search function - searches web and scrapes content if requested"""
+        """
+        Perform web search and optionally scrape results
+        
+        Args:
+            request: Search request parameters
+            
+        Returns:
+            SearchResponse with search results and optional scraped content
+        """
         start_time = time.time()
         
         try:
+            # Step 1: Perform web search
             logger.info(f"Performing web search for query: {request.query}")
             search_results = await self._perform_search(request)
             
@@ -66,10 +81,12 @@ class SearchService:
                     warning="No search results found"
                 )
             
+            # Step 2: Process results and optionally scrape content
             processed_results = await self._process_search_results(
                 search_results, request
             )
             
+            # Step 3: Filter invalid URLs if requested
             if request.ignoreInvalidURLs:
                 processed_results = self._filter_valid_urls(processed_results)
             

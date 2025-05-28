@@ -86,8 +86,8 @@ logging:
 # Search Engine Configuration
 search:
   # Google Custom Search API (optional - requires API key and search engine ID)
-  google_api_key: ""  # Set via environment variable GOOGLE_API_KEY
-  google_search_engine_id: ""  # Set via environment variable GOOGLE_SEARCH_ENGINE_ID
+  google_api_key: "AIzaSyDT-S4oERhfHZCDdhBJph6vDkNZGsEo2E0"  # Set via environment variable GOOGLE_API_KEY
+  google_search_engine_id: "e50e8531a02cb4ba0"  # Set via environment variable GOOGLE_SEARCH_ENGINE_ID
   
   # Bing Search API (optional - requires API key)
   bing_api_key: ""  # Set via environment variable BING_API_KEY

@@ -50,4 +50,3 @@ class SearchEngine(str, Enum):
     GOOGLE = "google"
     BING = "bing"
     DUCKDUCKGO = "duckduckgo"
-    SEARX = "searx" 

@@ -4,18 +4,18 @@
 **Institution**: Bennington College  
 **Project**: Plan Project 
 
-## 🎯 Project Overview
+## Project Overview
 
 Extended the **Crawl4AI** web scraping framework by implementing a comprehensive **`/search`** endpoint that matches FireCrawl's functionality. This project demonstrates full-stack development with backend API implementation and frontend integration to the server on top of pre existing endpoints.
 
-### 🚀 Key Achievements
+### Key Achievements
 - **Extended production codebase** with 4 new modules (1,100+ lines)
 - **Multi-provider search engine** (Google, Bing, DuckDuckGo) with intelligent fallback
 - **Comprehensive content extraction** (markdown, html, screenshots, links)
 - **Frontend playground integration** for interactive testing
 - **Production-ready API** with validation, error handling
 
-## 🏗️ Technical Implementation
+## Technical Implementation
 
 ### Files Created/Modified for This Project
 
@@ -56,7 +56,7 @@ deploy/docker/
 - **Format selection** via checkbox interface
 - **Auto-generated code** (Python & cURL example for /search endpoint)
 
-## 🔧 Core Features
+## Core Features
 
 ### Multi-Provider Search Engine
 - **Primary**: Google Custom Search API (requires API key)
@@ -118,7 +118,7 @@ search:
 
 **Note**: Without API keys, DuckDuckGo is used as fallback (works without configuration)
 
-## 🧪 Testing Options
+## Testing Options
 
 ### Option 1: Interactive Playground (Recommended)
 1. Open `http://localhost:11234/playground`

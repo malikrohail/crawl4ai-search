@@ -43,7 +43,7 @@ deploy/docker/
 ```
 
 ### Backend Development
-- **API Design**: RESTful endpoint with comprehensive validation
+- **API Design**: REST endpoint with comprehensive validation
 - **Multi-provider Integration**: Robust fallback system
 - **Error Handling**: Graceful degradation and detailed error messages
 - **Content Processing**: Multiple format extraction and hosting
